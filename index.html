@@ -1,0 +1,1288 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SmartHome — Пульт управления</title>
+<style>
+  * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
+  :root {
+    --bg: #0f1724;
+    --bg2: #1a2332;
+    --card: rgba(255,255,255,0.05);
+    --border: rgba(255,255,255,0.08);
+    --accent: #4facfe;
+    --accent2: #00f2fe;
+    --text: #fff;
+    --muted: #a0c4ff;
+    --danger: #ff6b6b;
+    --success: #4ade80;
+  }
+  body.light {
+    --bg: #f0f4f8;
+    --bg2: #ffffff;
+    --card: rgba(0,0,0,0.03);
+    --border: rgba(0,0,0,0.08);
+    --text: #1a2332;
+    --muted: #5a6b80;
+  }
+  body {
+    min-height: 100vh;
+    background: linear-gradient(135deg, var(--bg), var(--bg2));
+    color: var(--text);
+    overflow-x: hidden;
+    transition: 0.4s;
+  }
+
+  /* ===== ЭКРАН ВХОДА ===== */
+  .login-screen {
+    display: flex;
+    justify-content: center;
+    align-items: center;
+    min-height: 100vh;
+    padding: 20px;
+  }
+  .login-box {
+    background: var(--card);
+    backdrop-filter: blur(15px);
+    padding: 40px;
+    border-radius: 20px;
+    width: 100%;
+    max-width: 400px;
+    box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+    border: 1px solid var(--border);
+    animation: fadeIn 0.6s ease;
+  }
+  .login-box h1 { text-align: center; margin-bottom: 8px; font-size: 28px; }
+  .login-box .subtitle { text-align: center; color: var(--muted); margin-bottom: 30px; font-size: 14px; }
+  .login-box input {
+    width: 100%;
+    padding: 14px 16px;
+    margin-bottom: 15px;
+    background: rgba(255,255,255,0.08);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    color: var(--text);
+    font-size: 15px;
+    outline: none;
+    transition: 0.3s;
+  }
+  .login-box input:focus { border-color: var(--accent); }
+  .login-box input::placeholder { color: var(--muted); }
+  .login-btn {
+    width: 100%;
+    padding: 14px;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    border: none;
+    border-radius: 10px;
+    color: #fff;
+    font-size: 16px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: 0.3s;
+    margin-top: 10px;
+  }
+  .login-btn:hover { transform: translateY(-2px); box-shadow: 0 6px 20px rgba(79,172,254,0.5); }
+  .login-btn:active { transform: translateY(0); }
+  .error-msg { color: var(--danger); text-align: center; margin-top: 12px; font-size: 14px; min-height: 20px; }
+  .hint { text-align: center; margin-top: 20px; font-size: 12px; color: var(--muted); }
+
+  /* ===== ОСНОВНОЙ LAYOUT ===== */
+  .app { display: none; min-height: 100vh; }
+  .app.active { display: grid; grid-template-columns: 240px 1fr; animation: fadeIn 0.5s ease; }
+  @keyframes fadeIn { from { opacity: 0; transform: translateY(10px); } to { opacity: 1; transform: translateY(0); } }
+
+  /* ===== SIDEBAR ===== */
+  .sidebar {
+    background: var(--card);
+    backdrop-filter: blur(15px);
+    border-right: 1px solid var(--border);
+    padding: 20px 0;
+    position: sticky;
+    top: 0;
+    height: 100vh;
+    overflow-y: auto;
+  }
+  .logo {
+    padding: 0 20px 20px;
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 20px;
+    font-size: 22px;
+    font-weight: 700;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .logo span { background: linear-gradient(135deg, var(--accent), var(--accent2)); -webkit-background-clip: text; -webkit-text-fill-color: transparent; }
+  .nav-item {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    padding: 12px 20px;
+    color: var(--muted);
+    cursor: pointer;
+    transition: 0.3s;
+    border-left: 3px solid transparent;
+    font-size: 15px;
+  }
+  .nav-item:hover { background: rgba(255,255,255,0.05); color: var(--text); }
+  .nav-item.active {
+    background: linear-gradient(90deg, rgba(79,172,254,0.15), transparent);
+    color: var(--accent);
+    border-left-color: var(--accent);
+  }
+  .nav-item .icon { font-size: 20px; width: 24px; text-align: center; }
+
+  /* ===== MAIN ===== */
+  .main { padding: 25px 30px; overflow-y: auto; }
+  .topbar {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 25px;
+    flex-wrap: wrap;
+    gap: 15px;
+  }
+  .topbar h1 { font-size: 26px; }
+  .topbar-right { display: flex; align-items: center; gap: 12px; }
+  .search-box {
+    display: flex;
+    align-items: center;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 8px 14px;
+    gap: 8px;
+  }
+  .search-box input {
+    background: transparent;
+    border: none;
+    outline: none;
+    color: var(--text);
+    width: 180px;
+    font-size: 14px;
+  }
+  .icon-btn {
+    width: 40px;
+    height: 40px;
+    border-radius: 10px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    color: var(--text);
+    cursor: pointer;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    transition: 0.3s;
+    position: relative;
+  }
+  .icon-btn:hover { background: var(--accent); color: #fff; }
+  .badge {
+    position: absolute;
+    top: -4px;
+    right: -4px;
+    background: var(--danger);
+    color: #fff;
+    font-size: 10px;
+    min-width: 18px;
+    height: 18px;
+    border-radius: 9px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 4px;
+  }
+  .user-chip {
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 14px 6px 6px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 30px;
+    cursor: pointer;
+    transition: 0.3s;
+  }
+  .user-chip:hover { border-color: var(--accent); }
+  .avatar {
+    width: 32px;
+    height: 32px;
+    border-radius: 50%;
+    background: linear-gradient(135deg, var(--accent), var(--accent2));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-weight: 600;
+    color: #fff;
+  }
+
+  /* ===== СТРАНИЦЫ ===== */
+  .page { display: none; animation: pageIn 0.4s ease; }
+  .page.active { display: block; }
+  @keyframes pageIn { from { opacity: 0; transform: translateX(20px); } to { opacity: 1; transform: translateX(0); } }
+
+  /* ===== STATS ===== */
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(200px, 1fr));
+    gap: 15px;
+    margin-bottom: 25px;
+  }
+  .stat-card {
+    background: var(--card);
+    padding: 20px;
+    border-radius: 15px;
+    border: 1px solid var(--border);
+    transition: 0.3s;
+  }
+  .stat-card:hover { transform: translateY(-3px); border-color: var(--accent); }
+  .stat-card .label { color: var(--muted); font-size: 13px; margin-bottom: 8px; }
+  .stat-card .value { font-size: 24px; font-weight: 600; }
+  .stat-card .trend { font-size: 12px; color: var(--success); margin-top: 5px; }
+
+  /* ===== УСТРОЙСТВА ===== */
+  .section-title {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 15px;
+    margin-top: 10px;
+  }
+  .section-title h2 { font-size: 18px; }
+  .filter-tabs { display: flex; gap: 8px; flex-wrap: wrap; }
+  .tab {
+    padding: 6px 14px;
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    cursor: pointer;
+    font-size: 13px;
+    color: var(--muted);
+    transition: 0.3s;
+  }
+  .tab:hover { color: var(--text); }
+  .tab.active { background: var(--accent); color: #fff; border-color: var(--accent); }
+
+  .devices-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+    gap: 18px;
+  }
+  .device-card {
+    background: var(--card);
+    padding: 22px;
+    border-radius: 18px;
+    border: 1px solid var(--border);
+    transition: 0.4s;
+    position: relative;
+    overflow: hidden;
+    cursor: pointer;
+  }
+  .device-card::before {
+    content: "";
+    position: absolute;
+    inset: 0;
+    background: radial-gradient(circle at top right, rgba(79,172,254,0.2), transparent 70%);
+    opacity: 0;
+    transition: 0.4s;
+  }
+  .device-card:hover { transform: translateY(-3px); box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
+  .device-card.on { background: linear-gradient(135deg, rgba(79,172,254,0.18), rgba(0,242,254,0.08)); border-color: var(--accent); }
+  .device-card.on::before { opacity: 1; }
+  .device-card.on .device-icon { animation: pulse 2s infinite; }
+  @keyframes pulse { 0%,100% { transform: scale(1); } 50% { transform: scale(1.1); } }
+
+  .device-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 15px; position: relative; z-index: 1; }
+  .device-icon { font-size: 32px; transition: 0.3s; }
+  .device-name { font-size: 16px; font-weight: 600; margin-bottom: 4px; position: relative; z-index: 1; }
+  .device-status { font-size: 12px; color: var(--muted); margin-bottom: 15px; position: relative; z-index: 1; }
+
+  /* Переключатель */
+  .switch { position: relative; width: 50px; height: 26px; z-index: 2; }
+  .switch input { display: none; }
+  .slider {
+    position: absolute; cursor: pointer; inset: 0;
+    background: rgba(255,255,255,0.2);
+    border-radius: 26px;
+    transition: 0.3s;
+  }
+  .slider::before {
+    content: ""; position: absolute; height: 20px; width: 20px;
+    left: 3px; bottom: 3px; background: #fff; border-radius: 50%; transition: 0.3s;
+  }
+  .switch input:checked + .slider { background: var(--accent); }
+  .switch input:checked + .slider::before { transform: translateX(24px); }
+
+  /* Слайдер */
+  .slider-range { width: 100%; margin-top: 10px; accent-color: var(--accent); position: relative; z-index: 1; }
+  .range-value { display: flex; justify-content: space-between; font-size: 12px; color: var(--muted); margin-top: 5px; position: relative; z-index: 1; }
+
+  /* Кнопки устройств */
+  .device-buttons { display: flex; gap: 8px; flex-wrap: wrap; margin-top: 12px; position: relative; z-index: 1; }
+  .mini-btn {
+    flex: 1;
+    min-width: 70px;
+    padding: 8px;
+    background: rgba(255,255,255,0.1);
+    border: 1px solid var(--border);
+    color: var(--text);
+    border-radius: 8px;
+    cursor: pointer;
+    font-size: 12px;
+    transition: 0.3s;
+  }
+  .mini-btn:hover { background: var(--accent); border-color: var(--accent); color: #fff; transform: scale(1.05); }
+  .mini-btn:active { transform: scale(0.95); }
+  .mini-btn.active { background: var(--accent); border-color: var(--accent); color: #fff; }
+
+  /* Анимация штор */
+  .curtain-visual {
+    height: 60px;
+    background: linear-gradient(to bottom, #87ceeb 0%, #4a90e2 100%);
+    border-radius: 8px;
+    margin-top: 12px;
+    position: relative;
+    overflow: hidden;
+    transition: 0.5s;
+  }
+  .curtain-l, .curtain-r {
+    position: absolute;
+    top: 0;
+    width: 50%;
+    height: 100%;
+    background: linear-gradient(135deg, #8b4513, #a0522d);
+    transition: 0.6s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+  .curtain-l { left: 0; transform: translateX(0); }
+  .curtain-r { right: 0; transform: translateX(0); }
+  .device-card[data-curtain="open"] .curtain-l { transform: translateX(-100%); }
+  .device-card[data-curtain="open"] .curtain-r { transform: translateX(100%); }
+  .device-card[data-curtain="half"] .curtain-l { transform: translateX(-50%); }
+  .device-card[data-curtain="half"] .curtain-r { transform: translateX(50%); }
+
+  /* Эквалайзер музыки */
+  .equalizer {
+    display: flex;
+    gap: 3px;
+    align-items: flex-end;
+    height: 30px;
+    margin-top: 12px;
+  }
+  .eq-bar {
+    width: 4px;
+    background: var(--accent);
+    border-radius: 2px;
+    transition: 0.2s;
+  }
+  .device-card.on .eq-bar { animation: eq 0.8s infinite ease-in-out; }
+  .eq-bar:nth-child(1) { animation-delay: 0s; }
+  .eq-bar:nth-child(2) { animation-delay: 0.1s; }
+  .eq-bar:nth-child(3) { animation-delay: 0.2s; }
+  .eq-bar:nth-child(4) { animation-delay: 0.3s; }
+  .eq-bar:nth-child(5) { animation-delay: 0.4s; }
+  @keyframes eq { 0%,100% { height: 5px; } 50% { height: 28px; } }
+
+  /* Индикатор камеры */
+  .rec-dot {
+    display: inline-block;
+    width: 8px;
+    height: 8px;
+    background: var(--danger);
+    border-radius: 50%;
+    margin-right: 5px;
+    opacity: 0;
+    transition: 0.3s;
+  }
+  .device-card.on .rec-dot { opacity: 1; animation: blink 1s infinite; }
+  @keyframes blink { 0%,100% { opacity: 1; } 50% { opacity: 0.3; } }
+
+  /* Пылесос */
+  .vacuum-track {
+    height: 40px;
+    background: rgba(255,255,255,0.05);
+    border-radius: 8px;
+    margin-top: 12px;
+    position: relative;
+    overflow: hidden;
+  }
+  .vacuum-icon {
+    position: absolute;
+    top: 50%;
+    left: 10%;
+    transform: translateY(-50%);
+    font-size: 20px;
+    transition: 3s linear;
+  }
+  .device-card.on .vacuum-icon { animation: vacuumMove 4s infinite linear; }
+  @keyframes vacuumMove {
+    0% { left: 10%; top: 50%; }
+    25% { left: 80%; top: 30%; }
+    50% { left: 60%; top: 70%; }
+    75% { left: 20%; top: 40%; }
+    100% { left: 10%; top: 50%; }
+  }
+
+  /* ===== МОДАЛЬНОЕ ОКНО ===== */
+  .modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0,0,0,0.7);
+    backdrop-filter: blur(5px);
+    display: none;
+    justify-content: center;
+    align-items: center;
+    z-index: 100;
+    padding: 20px;
+  }
+  .modal-overlay.show { display: flex; animation: fadeIn 0.3s; }
+  .modal {
+    background: var(--bg2);
+    border: 1px solid var(--border);
+    border-radius: 20px;
+    padding: 30px;
+    max-width: 500px;
+    width: 100%;
+    max-height: 90vh;
+    overflow-y: auto;
+    animation: modalIn 0.4s cubic-bezier(0.34, 1.56, 0.64, 1);
+  }
+  @keyframes modalIn { from { transform: scale(0.8); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+  .modal-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 20px;
+    padding-bottom: 15px;
+    border-bottom: 1px solid var(--border);
+  }
+  .modal-header h3 { font-size: 20px; }
+  .close-btn {
+    background: none;
+    border: none;
+    color: var(--muted);
+    font-size: 24px;
+    cursor: pointer;
+    transition: 0.3s;
+  }
+  .close-btn:hover { color: var(--danger); transform: rotate(90deg); }
+  .modal-body { margin-bottom: 20px; }
+  .modal-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .modal-row:last-child { border-bottom: none; }
+  .modal-row .label { color: var(--muted); font-size: 14px; }
+  .modal-row .value { font-weight: 600; }
+
+  /* ===== TOAST ===== */
+  .toast-container {
+    position: fixed;
+    top: 20px;
+    right: 20px;
+    z-index: 2000;
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .toast {
+    background: var(--bg2);
+    color: var(--text);
+    padding: 14px 22px;
+    border-radius: 10px;
+    border-left: 4px solid var(--accent);
+    box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+    animation: toastIn 0.4s ease;
+    min-width: 280px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+  }
+  .toast.success { border-left-color: var(--success); }
+  .toast.error { border-left-color: var(--danger); }
+  .toast.hide { animation: toastOut 0.4s ease forwards; }
+  @keyframes toastIn { from { transform: translateX(400px); opacity: 0; } to { transform: translateX(0); opacity: 1; } }
+  @keyframes toastOut { to { transform: translateX(400px); opacity: 0; } }
+
+  /* ===== УВЕДОМЛЕНИЯ (панель) ===== */
+  .notif-panel {
+    position: fixed;
+    top: 0;
+    right: -400px;
+    width: 380px;
+    max-width: 100%;
+    height: 100vh;
+    background: var(--bg2);
+    border-left: 1px solid var(--border);
+    padding: 20px;
+    transition: 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+    z-index: 90;
+    overflow-y: auto;
+  }
+  .notif-panel.open { right: 0; }
+  .notif-panel h3 { margin-bottom: 20px; display: flex; justify-content: space-between; align-items: center; }
+  .notif-item {
+    padding: 12px;
+    background: var(--card);
+    border-radius: 10px;
+    margin-bottom: 10px;
+    border-left: 3px solid var(--accent);
+    animation: fadeIn 0.3s;
+  }
+  .notif-item .time { font-size: 11px; color: var(--muted); margin-top: 5px; }
+
+  /* ===== СТРАНИЦА КОМНАТ ===== */
+  .rooms-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+    gap: 20px;
+  }
+  .room-card {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 18px;
+    padding: 25px;
+    cursor: pointer;
+    transition: 0.3s;
+    position: relative;
+    overflow: hidden;
+  }
+  .room-card:hover { transform: translateY(-5px); border-color: var(--accent); }
+  .room-icon { font-size: 48px; margin-bottom: 15px; }
+  .room-name { font-size: 18px; font-weight: 600; margin-bottom: 5px; }
+  .room-info { color: var(--muted); font-size: 13px; }
+
+  /* ===== СТРАНИЦА НАСТРОЕК ===== */
+  .settings-section {
+    background: var(--card);
+    border: 1px solid var(--border);
+    border-radius: 15px;
+    padding: 20px;
+    margin-bottom: 20px;
+  }
+  .settings-section h3 { margin-bottom: 15px; font-size: 16px; }
+  .setting-row {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding: 12px 0;
+    border-bottom: 1px solid var(--border);
+  }
+  .setting-row:last-child { border-bottom: none; }
+
+  /* ===== ИСТОРИЯ ===== */
+  .history-list { max-height: 500px; overflow-y: auto; }
+  .history-item {
+    display: flex;
+    gap: 12px;
+    padding: 12px;
+    background: var(--card);
+    border-radius: 10px;
+    margin-bottom: 8px;
+    align-items: center;
+  }
+  .history-icon {
+    width: 40px;
+    height: 40px;
+    background: rgba(79,172,254,0.2);
+    border-radius: 10px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 18px;
+    flex-shrink: 0;
+  }
+  .history-text { flex: 1; font-size: 14px; }
+  .history-time { font-size: 11px; color: var(--muted); }
+
+  /* ===== АДАПТИВ ===== */
+  @media (max-width: 900px) {
+    .app.active { grid-template-columns: 1fr; }
+    .sidebar {
+      position: fixed;
+      left: -260px;
+      width: 240px;
+      z-index: 50;
+      transition: 0.3s;
+    }
+    .sidebar.open { left: 0; }
+    .main { padding: 15px; }
+    .menu-toggle { display: flex !important; }
+  }
+  .menu-toggle { display: none; }
+</style>
+</head>
+<body>
+
+<!-- ===== ЭКРАН ВХОДА ===== -->
+<div class="login-screen" id="loginScreen">
+  <div class="login-box">
+    <h1>🏠 SmartHome</h1>
+    <p class="subtitle">Войдите в систему управления домом</p>
+    <form id="loginForm">
+      <input type="text" id="username" placeholder="Логин" required>
+      <input type="password" id="password" placeholder="Пароль" required>
+      <button type="submit" class="login-btn">Войти</button>
+      <p class="error-msg" id="errorMsg"></p>
+    </form>
+    <p class="hint">Демо: admin / admin123</p>
+  </div>
+</div>
+
+<!-- ===== ПРИЛОЖЕНИЕ ===== -->
+<div class="app" id="app">
+
+  <!-- SIDEBAR -->
+  <aside class="sidebar" id="sidebar">
+    <div class="logo">🏠 <span>SmartHome</span></div>
+    <div class="nav-item active" data-page="dashboard"><span class="icon">📊</span> Дашборд</div>
+    <div class="nav-item" data-page="devices"><span class="icon">💡</span> Устройства</div>
+    <div class="nav-item" data-page="rooms"><span class="icon">🏡</span> Комнаты</div>
+    <div class="nav-item" data-page="scenes"><span class="icon">🎬</span> Сцены</div>
+    <div class="nav-item" data-page="history"><span class="icon">📜</span> История</div>
+    <div class="nav-item" data-page="settings"><span class="icon">⚙️</span> Настройки</div>
+    <div class="nav-item" data-page="profile"><span class="icon">👤</span> Профиль</div>
+  </aside>
+
+  <!-- MAIN -->
+  <main class="main">
+    <div class="topbar">
+      <div style="display:flex; align-items:center; gap:12px;">
+        <button class="icon-btn menu-toggle" onclick="document.getElementById('sidebar').classList.toggle('open')">☰</button>
+        <h1 id="pageTitle">Дашборд</h1>
+      </div>
+      <div class="topbar-right">
+        <div class="search-box">
+          🔍 <input type="text" placeholder="Поиск устройств..." id="searchInput" oninput="searchDevices(this.value)">
+        </div>
+        <button class="icon-btn" onclick="toggleNotifPanel()">
+          🔔 <span class="badge" id="notifBadge">3</span>
+        </button>
+        <div class="user-chip" onclick="goToPage('profile')">
+          <div class="avatar" id="userAvatar">A</div>
+          <span id="userName">Admin</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- СТРАНИЦА: ДАШБОРД -->
+    <div class="page active" id="page-dashboard">
+      <div class="stats">
+        <div class="stat-card"><div class="label">Активных устройств</div><div class="value" id="activeCount">0</div><div class="trend">▲ из 7</div></div>
+        <div class="stat-card"><div class="label">Температура дома</div><div class="value" id="homeTemp">22°C</div><div class="trend">Комфортно</div></div>
+        <div class="stat-card"><div class="label">Влажность</div><div class="value">48%</div><div class="trend">Норма</div></div>
+        <div class="stat-card"><div class="label">Энергопотребление</div><div class="value" id="powerUsage">1.2 кВт</div><div class="trend">▼ -5%</div></div>
+      </div>
+
+      <div class="section-title">
+        <h2>Быстрый доступ</h2>
+      </div>
+      <div class="devices-grid" id="devicesGrid"></div>
+    </div>
+
+    <!-- СТРАНИЦА: УСТРОЙСТВА -->
+    <div class="page" id="page-devices">
+      <div class="section-title">
+        <h2>Все устройства</h2>
+        <div class="filter-tabs">
+          <div class="tab active" data-filter="all">Все</div>
+          <div class="tab" data-filter="on">Включённые</div>
+          <div class="tab" data-filter="off">Выключенные</div>
+        </div>
+      </div>
+      <div class="devices-grid" id="devicesGridAll"></div>
+    </div>
+
+    <!-- СТРАНИЦА: КОМНАТЫ -->
+    <div class="page" id="page-rooms">
+      <div class="section-title"><h2>Комнаты</h2></div>
+      <div class="rooms-grid">
+        <div class="room-card" onclick="filterByRoom('Гостиная')">
+          <div class="room-icon">🛋️</div>
+          <div class="room-name">Гостиная</div>
+          <div class="room-info">3 устройства · 22°C</div>
+        </div>
+        <div class="room-card" onclick="filterByRoom('Спальня')">
+          <div class="room-icon">🛏️</div>
+          <div class="room-name">Спальня</div>
+          <div class="room-info">2 устройства · 20°C</div>
+        </div>
+        <div class="room-card" onclick="filterByRoom('Кухня')">
+          <div class="room-icon">🍳</div>
+          <div class="room-name">Кухня</div>
+          <div class="room-info">2 устройства · 24°C</div>
+        </div>
+        <div class="room-card" onclick="filterByRoom('Ванная')">
+          <div class="room-icon">🛁</div>
+          <div class="room-name">Ванная</div>
+          <div class="room-info">1 устройство · 25°C</div>
+        </div>
+        <div class="room-card" onclick="filterByRoom('Двор')">
+          <div class="room-icon">🌳</div>
+          <div class="room-name">Двор</div>
+          <div class="room-info">2 устройства · 15°C</div>
+        </div>
+        <div class="room-card" onclick="filterByRoom('Гараж')">
+          <div class="room-icon">🚗</div>
+          <div class="room-name">Гараж</div>
+          <div class="room-info">1 устройство · 18°C</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- СТРАНИЦА: СЦЕНЫ -->
+    <div class="page" id="page-scenes">
+      <div class="section-title"><h2>Быстрые сцены</h2></div>
+      <div class="devices-grid">
+        <div class="device-card" onclick="applyScene('morning')">
+          <div class="device-icon">🌅</div>
+          <div class="device-name">Доброе утро</div>
+          <div class="device-status">Шторы открыты, свет 80%, кофе</div>
+        </div>
+        <div class="device-card" onclick="applyScene('movie')">
+          <div class="device-icon">🎬</div>
+          <div class="device-name">Кино вечер</div>
+          <div class="device-status">Свет 20%, шторы закрыты, ТВ</div>
+        </div>
+        <div class="device-card" onclick="applyScene('night')">
+          <div class="device-icon">🌙</div>
+          <div class="device-name">Спокойной ночи</div>
+          <div class="device-status">Всё выключено, охрана вкл.</div>
+        </div>
+        <div class="device-card" onclick="applyScene('away')">
+          <div class="device-icon">🏃</div>
+          <div class="device-name">Я ушёл</div>
+          <div class="device-status">Экономия, сигнализация</div>
+        </div>
+        <div class="device-card" onclick="applyScene('party')">
+          <div class="device-icon">🎉</div>
+          <div class="device-name">Вечеринка</div>
+          <div class="device-status">Музыка, свет RGB, шторы</div>
+        </div>
+        <div class="device-card" onclick="applyScene('work')">
+          <div class="device-icon">💼</div>
+          <div class="device-name">Работа</div>
+          <div class="device-status">Яркий свет, тишина</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- СТРАНИЦА: ИСТОРИЯ -->
+    <div class="page" id="page-history">
+      <div class="section-title"><h2>История действий</h2>
+        <button class="mini-btn" onclick="clearHistory()">🗑️ Очистить</button>
+      </div>
+      <div class="history-list" id="historyList"></div>
+    </div>
+
+    <!-- СТРАНИЦА: НАСТРОЙКИ -->
+    <div class="page" id="page-settings">
+      <div class="settings-section">
+        <h3>🎨 Внешний вид</h3>
+        <div class="setting-row">
+          <span>Тёмная тема</span>
+          <label class="switch"><input type="checkbox" id="themeToggle" checked onchange="toggleTheme()"><span class="slider"></span></label>
+        </div>
+        <div class="setting-row">
+          <span>Анимации</span>
+          <label class="switch"><input type="checkbox" checked><span class="slider"></span></label>
+        </div>
+      </div>
+      <div class="settings-section">
+        <h3>🔔 Уведомления</h3>
+        <div class="setting-row">
+          <span>Push-уведомления</span>
+          <label class="switch"><input type="checkbox" checked><span class="slider"></span></label>
+        </div>
+        <div class="setting-row">
+          <span>Звук событий</span>
+          <label class="switch"><input type="checkbox" checked><span class="slider"></span></label>
+        </div>
+        <div class="setting-row">
+          <span>Email-отчёты</span>
+          <label class="switch"><input type="checkbox"><span class="slider"></span></label>
+        </div>
+      </div>
+      <div class="settings-section">
+        <h3>🔐 Безопасность</h3>
+        <div class="setting-row">
+          <span>Двухфакторная авторизация</span>
+          <label class="switch"><input type="checkbox"><span class="slider"></span></label>
+        </div>
+        <div class="setting-row">
+          <span>Автоматический выход (30 мин)</span>
+          <label class="switch"><input type="checkbox" checked><span class="slider"></span></label>
+        </div>
+      </div>
+      <div class="settings-section">
+        <h3>🌐 Система</h3>
+        <div class="setting-row"><span>Версия</span><span class="value">2.4.1</span></div>
+        <div class="setting-row"><span>Последнее обновление</span><span class="value">Сегодня</span></div>
+        <div class="setting-row"><button class="mini-btn" onclick="showToast('✅ Система обновлена', 'success')">🔄 Проверить обновления</button></div>
+      </div>
+    </div>
+
+    <!-- СТРАНИЦА: ПРОФИЛЬ -->
+    <div class="page" id="page-profile">
+      <div class="settings-section" style="text-align:center; padding:40px;">
+        <div class="avatar" style="width:100px; height:100px; font-size:40px; margin:0 auto 15px;" id="profileAvatar">A</div>
+        <h2 id="profileName">Admin</h2>
+        <p style="color:var(--muted); margin-top:5px;">admin@smarthome.local</p>
+        <p style="color:var(--muted); font-size:13px; margin-top:5px;">Администратор · С нами с января 2025</p>
+      </div>
+      <div class="settings-section">
+        <h3>👤 Личные данные</h3>
+        <div class="setting-row">
+          <span>Имя</span>
+          <input type="text" id="profileNameInput" value="Admin" style="background:var(--card); border:1px solid var(--border); padding:6px 12px; border-radius:8px; color:var(--text); outline:none;">
+        </div>
+        <div class="setting-row">
+          <span>Email</span>
+          <span>admin@smarthome.local</span>
+        </div>
+        <div class="setting-row">
+          <button class="mini-btn" onclick="saveProfile()">💾 Сохранить</button>
+          <button class="mini-btn" onclick="logout()" style="background:rgba(255,107,107,0.2); border-color:var(--danger); color:var(--danger);">🚪 Выйти</button>
+        </div>
+      </div>
+    </div>
+
+  </main>
+</div>
+
+<!-- МОДАЛЬНОЕ ОКНО -->
+<div class="modal-overlay" id="modalOverlay" onclick="if(event.target===this) closeModal()">
+  <div class="modal">
+    <div class="modal-header">
+      <h3 id="modalTitle">Устройство</h3>
+      <button class="close-btn" onclick="closeModal()">✕</button>
+    </div>
+    <div class="modal-body" id="modalBody"></div>
+  </div>
+</div>
+
+<!-- ПАНЕЛЬ УВЕДОМЛЕНИЙ -->
+<div class="notif-panel" id="notifPanel">
+  <h3>🔔 Уведомления <button class="close-btn" onclick="toggleNotifPanel()">✕</button></h3>
+  <div id="notifList"></div>
+</div>
+
+<!-- TOAST КОНТЕЙНЕР -->
+<div class="toast-container" id="toastContainer"></div>
+
+<script>
+  // ===== АВТОРИЗАЦИЯ =====
+  const USERS = { admin: 'admin123', user: '1234' };
+
+  document.getElementById('loginForm').addEventListener('submit', function(e) {
+    e.preventDefault();
+    const u = document.getElementById('username').value.trim();
+    const p = document.getElementById('password').value;
+    const err = document.getElementById('errorMsg');
+
+    if (USERS[u] && USERS[u] === p) {
+      err.textContent = '';
+      document.getElementById('loginScreen').style.display = 'none';
+      document.getElementById('app').classList.add('active');
+      document.getElementById('userName').textContent = u;
+      document.getElementById('userAvatar').textContent = u[0].toUpperCase();
+      document.getElementById('profileName').textContent = u;
+      document.getElementById('profileAvatar').textContent = u[0].toUpperCase();
+      document.getElementById('profileNameInput').value = u;
+      localStorage.setItem('loggedUser', u);
+      showToast('✅ Вход выполнен', 'success');
+      addHistory('🔐', 'Выполнен вход в систему');
+    } else {
+      err.textContent = '❌ Неверный логин или пароль';
+      document.querySelector('.login-box').style.animation = 'none';
+      setTimeout(() => document.querySelector('.login-box').style.animation = 'shake 0.4s', 10);
+    }
+  });
+
+  function logout() {
+    localStorage.removeItem('loggedUser');
+    document.getElementById('app').classList.remove('active');
+    document.getElementById('loginScreen').style.display = 'flex';
+    document.getElementById('loginForm').reset();
+    showToast('👋 Вы вышли из системы');
+  }
+
+  if (localStorage.getItem('loggedUser')) {
+    const u = localStorage.getItem('loggedUser');
+    document.getElementById('loginScreen').style.display = 'none';
+    document.getElementById('app').classList.add('active');
+    document.getElementById('userName').textContent = u;
+    document.getElementById('userAvatar').textContent = u[0].toUpperCase();
+    document.getElementById('profileName').textContent = u;
+    document.getElementById('profileAvatar').textContent = u[0].toUpperCase();
+    document.getElementById('profileNameInput').value = u;
+  }
+
+  // ===== НАВИГАЦИЯ =====
+  document.querySelectorAll('.nav-item').forEach(item => {
+    item.addEventListener('click', () => goToPage(item.dataset.page));
+  });
+
+  function goToPage(page) {
+    document.querySelectorAll('.nav-item').forEach(n => n.classList.remove('active'));
+    document.querySelector(`.nav-item[data-page="${page}"]`)?.classList.add('active');
+    document.querySelectorAll('.page').forEach(p => p.classList.remove('active'));
+    document.getElementById('page-' + page).classList.add('active');
+    const titles = { dashboard:'Дашборд', devices:'Устройства', rooms:'Комнаты', scenes:'Сцены', history:'История', settings:'Настройки', profile:'Профиль' };
+    document.getElementById('pageTitle').textContent = titles[page];
+    document.getElementById('sidebar').classList.remove('open');
+    if (page === 'history') renderHistory();
+  }
+
+  // ===== УСТРОЙСТВА =====
+  const devices = {
+    light:    { name:'Свет в гостиной', icon:'💡', room:'Гостиная', on:false, brightness:70 },
+    thermo:   { name:'Термостат',       icon:'🌡️', room:'Гостиная', on:false, temp:22 },
+    curtains: { name:'Шторы',           icon:'🪟', room:'Гостиная', on:false, mode:'close' },
+    music:    { name:'Музыка',          icon:'🎵', room:'Спальня',  on:false, track:'Chill Vibes' },
+    camera:   { name:'Камеры',          icon:'📹', room:'Двор',     on:false },
+    alarm:    { name:'Сигнализация',    icon:'🚨', room:'Дом',      on:false },
+    vacuum:   { name:'Робот-пылесос',   icon:'🤖', room:'Гостиная', on:false }
+  };
+
+  function renderDevices(filter='all', container='devicesGrid') {
+    const grid = document.getElementById(container);
+    grid.innerHTML = '';
+    Object.keys(devices).forEach(id => {
+      const d = devices[id];
+      if (filter === 'on' && !d.on) return;
+      if (filter === 'off' && d.on) return;
+
+      const card = document.createElement('div');
+      card.className = 'device-card' + (d.on ? ' on' : '');
+      card.id = 'card-' + id + '-' + container;
+      if (id === 'curtains') card.dataset.curtain = d.mode;
+      card.onclick = (e) => { if (!e.target.closest('.switch') && !e.target.closest('.mini-btn') && !e.target.closest('.slider-range')) openDeviceModal(id); };
+
+      let extra = '';
+      if (id === 'light') extra = `
+        <input type="range" min="0" max="100" value="${d.brightness}" class="slider-range" oninput="updateBrightness('${id}', this.value, event)">
+        <div class="range-value"><span>Яркость</span><span id="brightnessVal-${container}">${d.brightness}%</span></div>`;
+      if (id === 'thermo') extra = `
+        <input type="range" min="16" max="30" value="${d.temp}" class="slider-range" oninput="updateTemp('${id}', this.value, event)">
+        <div class="range-value"><span>Температура</span><span id="tempVal-${container}">${d.temp}°C</span></div>`;
+      if (id === 'curtains') extra = `
+        <div class="curtain-visual"><div class="curtain-l"></div><div class="curtain-r"></div></div>
+        <div class="device-buttons">
+          <button class="mini-btn ${d.mode==='open'?'active':''}" onclick="setCurtain('open', event)">Открыть</button>
+          <button class="mini-btn ${d.mode==='half'?'active':''}" onclick="setCurtain('half', event)">½</button>
+          <button class="mini-btn ${d.mode==='close'?'active':''}" onclick="setCurtain('close', event)">Закрыть</button>
+        </div>`;
+      if (id === 'music') extra = `
+        <div class="equalizer"><div class="eq-bar" style="height:10px"></div><div class="eq-bar" style="height:15px"></div><div class="eq-bar" style="height:20px"></div><div class="eq-bar" style="height:12px"></div><div class="eq-bar" style="height:18px"></div></div>
+        <div class="device-buttons">
+          <button class="mini-btn" onclick="musicAction('prev', event)">⏮</button>
+          <button class="mini-btn" onclick="musicAction('play', event)">▶️</button>
+          <button class="mini-btn" onclick="musicAction('next', event)">⏭</button>
+        </div>`;
+      if (id === 'camera') extra = `
+        <div class="device-buttons">
+          <button class="mini-btn" onclick="showToast('📹 Камера 1: двор', 'success'); event.stopPropagation();">Камера 1</button>
+          <button class="mini-btn" onclick="showToast('📹 Камера 2: вход', 'success'); event.stopPropagation();">Камера 2</button>
+        </div>`;
+      if (id === 'vacuum') extra = `
+        <div class="vacuum-track"><div class="vacuum-icon">🤖</div></div>
+        <div class="device-buttons">
+          <button class="mini-btn" onclick="vacuumAction('start', event)">▶ Старт</button>
+          <button class="mini-btn" onclick="vacuumAction('pause', event)">⏸</button>
+          <button class="mini-btn" onclick="vacuumAction('home', event)">🏠 База</button>
+        </div>`;
+
+      card.innerHTML = `
+        <div class="device-header">
+          <div class="device-icon">${d.icon}</div>
+          <label class="switch" onclick="event.stopPropagation()">
+            <input type="checkbox" ${d.on?'checked':''} onchange="toggleDevice('${id}', this.checked, '${container}')">
+            <span class="slider"></span>
+          </label>
+        </div>
+        <div class="device-name">${d.name}</div>
+        <div class="device-status"><span class="rec-dot"></span>${getStatus(id)}</div>
+        ${extra}
+      `;
+      grid.appendChild(card);
+    });
+  }
+
+  function getStatus(id) {
+    const d = devices[id];
+    if (!d.on) return 'Выключено';
+    const map = {
+      light: `Яркость ${d.brightness}%`,
+      thermo: `Нагрев до ${d.temp}°C`,
+      curtains: d.mode === 'open' ? 'Открыты' : d.mode === 'half' ? 'Наполовину' : 'Закрыты',
+      music: `▶ ${d.track}`,
+      camera: '<span class="rec-dot"></span>Запись',
+      alarm: 'Под охраной',
+      vacuum: 'Убирается'
+    };
+    return map[id];
+  }
+
+  function toggleDevice(id, state, container) {
+    devices[id].on = state;
+    renderDevices(currentFilter, 'devicesGrid');
+    renderDevices(currentFilter, 'devicesGridAll');
+    const action = state ? 'включено' : 'выключено';
+    showToast(`${devices[id].icon} ${devices[id].name} ${action}`, state ? 'success' : '');
+    addHistory(devices[id].icon, `${devices[id].name} ${action}`);
+    updateStats();
+  }
+
+  let currentFilter = 'all';
+  document.querySelectorAll('.tab').forEach(t => {
+    t.addEventListener('click', () => {
+      document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+      t.classList.add('active');
+      currentFilter = t.dataset.filter;
+      renderDevices(currentFilter, 'devicesGridAll');
+    });
+  });
+
+  function updateBrightness(id, v, e) {
+    if (e) e.stopPropagation();
+    devices[id].brightness = parseInt(v);
+    document.querySelectorAll('[id^="brightnessVal-"]').forEach(el => el.textContent = v + '%');
+    if (v > 0 && !devices[id].on) {
+      devices[id].on = true;
+      renderDevices(currentFilter, 'devicesGrid');
+      renderDevices(currentFilter, 'devicesGridAll');
+      addHistory('💡', `Свет установлен на ${v}%`);
+    }
+    updateStats();
+  }
+
+  function updateTemp(id, v, e) {
+    if (e) e.stopPropagation();
+    devices[id].temp = parseInt(v);
+    document.querySelectorAll('[id^="tempVal-"]').forEach(el => el.textContent = v + '°C');
+    document.getElementById('homeTemp').textContent = v + '°C';
+    if (!devices[id].on) {
+      devices[id].on = true;
+      renderDevices(currentFilter, 'devicesGrid');
+      renderDevices(currentFilter, 'devicesGridAll');
+    }
+    addHistory('🌡️', `Температура: ${v}°C`);
+    updateStats();
+  }
+
+  function setCurtain(mode, e) {
+    if (e) e.stopPropagation();
+    devices.curtains.mode = mode;
+    devices.curtains.on = mode !== 'close';
+    renderDevices(currentFilter, 'devicesGrid');
+    renderDevices(currentFilter, 'devicesGridAll');
+    const map = { open: 'открыты', half: 'наполовину', close: 'закрыты' };
+    showToast(`🪟 Шторы ${map[mode]}`, 'success');
+    addHistory('🪟', `Шторы ${map[mode]}`);
+    updateStats();
+  }
+
+  const tracks = ['Chill Vibes', 'Lo-Fi Beats', 'Jazz Evening', 'Rock Classics', 'Ambient Dreams'];
+  let trackIdx = 0;
+  function musicAction(action, e) {
+    if (e) e.stopPropagation();
+    if (action === 'prev') { trackIdx = (trackIdx - 1 + tracks.length) % tracks.length; }
+    else if (action === 'next') { trackIdx = (trackIdx + 1) % tracks.length; }
+    else if (action === 'play') {
+      if (!devices.music.on) { devices.music.on = true; renderDevices(currentFilter, 'devicesGrid'); renderDevices(currentFilter, 'devicesGridAll'); }
+    }
+    devices.music.track = tracks[trackIdx];
+    renderDevices(currentFilter, 'devicesGrid');
+    renderDevices(currentFilter, 'devicesGridAll');
+    showToast(`🎵 ${devices.music.track}`, 'success');
+    addHistory('🎵', `Играет: ${devices.music.track}`);
+  }
+
+  function vacuumAction(action, e) {
+    if (e) e.stopPropagation();
+    const map = { start: 'Уборка начата', pause: 'Пауза', home: 'Возврат на базу' };
+    if (action === 'start') devices.vacuum.on = true;
+    if (action === 'home') devices.vacuum.on = false;
+    renderDevices(currentFilter, 'devicesGrid');
+    renderDevices(currentFilter, 'devicesGridAll');
+    showToast(`🤖 ${map[action]}`, 'success');
+    addHistory('🤖', `Пылесос: ${map[action].toLowerCase()}`);
+    updateStats();
+  }
+
+  function applyScene(scene) {
+    const scenes = {
+      morning: { msg: '🌅 Сцена "Доброе утро"', actions: () => { setCurtain('open'); devices.light.on=true; devices.light.brightness=80; devices.music.on=true; devices.music.track=tracks[0]; } },
+      movie:   { msg: '🎬 Сцена "Кино"',       actions: () => { setCurtain('close'); devices.light.on=true; devices.light.brightness=20; } },
+      night:   { msg: '🌙 Сцена "Спокойной ночи"', actions: () => { Object.keys(devices).forEach(k => devices[k].on=false); setCurtain('close'); devices.alarm.on=true; } },
+      away:    { msg: '🏃 Сцена "Я ушёл"',     actions: () => { Object.keys(devices).forEach(k => devices[k].on=false); devices.alarm.on=true; devices.camera.on=true; } },
+      party:   { msg: '🎉 Сцена "Вечеринка"',  actions: () => { devices.light.on=true; devices.light.brightness=100; devices.music.on=true; devices.curtains.on=true; devices.curtains.mode='half'; } },
+      work:    { msg: '💼 Сцена "Работа"',     actions: () => { devices.light.on=true; devices.light.brightness=100; devices.music.on=false; } }
+    };
+    scenes[scene].actions();
+    renderDevices(currentFilter, 'devicesGrid');
+    renderDevices(currentFilter, 'devicesGridAll');
+    showToast(scenes[scene].msg, 'success');
+    addHistory('🎬', `Применена сцена: ${scenes[scene].msg.split('"')[1]}`);
+    updateStats();
+  }
+
+  function filterByRoom(room) {
+    goToPage('devices');
+    document.querySelectorAll('.tab').forEach(x => x.classList.remove('active'));
+    document.querySelector('.tab[data-filter="all"]').classList.add('active');
+    currentFilter = 'all';
+    const grid = document.getElementById('devicesGridAll');
+    grid.innerHTML = '';
+    let found = 0;
+    Object.keys(devices).forEach(id => {
+      if (devices[id].room !== room) return;
+      found++;
+      // используем ту же логику что и renderDevices
+    });
+    // Проще — отрендерим все, потом скроем лишние
+    renderDevices('all', 'devicesGridAll');
+    document.querySelectorAll('#devicesGridAll .device-card').forEach(card => {
+      const id = card.id.replace('card-', '').replace('-devicesGridAll', '');
+      if (devices[id].room !== room) card.style.display = 'none';
+    });
+    document.getElementById('pageTitle').textContent = `Комната: ${room}`;
+    showToast(`🏡 Комната: ${room}`, 'success');
+  }
+
+  function searchDevices(q) {
+    q = q.toLowerCase();
+    document.querySelectorAll('#devicesGrid .device-card, #devicesGridAll .device-card').forEach(card => {
+      const name = card.querySelector('.device-name').textContent.toLowerCase();
+      card.style.display = name.includes(q) ? '' : 'none';
+    });
+  }
+
+  // ===== МОДАЛЬНОЕ ОКНО =====
+  function openDeviceModal(id) {
+    const d = devices[id];
+    document.getElementById('modalTitle').textContent = d.icon + ' ' + d.name;
+    let body = `
+      <div class="modal-row"><span class="label">Комната</span><span class="value">${d.room}</span></div>
+      <div class="modal-row"><span class="label">Состояние</span><span class="value">${d.on ? '✅ Включено' : '⭕ Выключено'}</span></div>
+    `;
+    if (id === 'light') body += `<div class="modal-row"><span class="label">Яркость</span><span class="value">${d.brightness}%</span></div>`;
+    if (id === 'thermo') body += `<div class="modal-row"><span class="label">Температура</span><span class="value">${d.temp}°C</span></div>`;
+    if (id === 'music') body += `<div class="modal-row"><span class="label">Трек</span><span class="value">${d.track}</span></div>`;
+    if (id === 'curtains') body += `<div class="modal-row"><span class="label">Положение</span><span class="value">${d.mode}</span></div>`;
+    body += `
+      <div class="modal-row"><span class="label">Модель</span><span class="value">SH-${id.toUpperCase()}-2025</span></div>
+      <div class="modal-row"><span class="label">Прошивка</span><span class="value">v3.2.1</span></div>
+      <div class="modal-row"><span class="label">Связь</span><span class="value" style="color:var(--success)">● WiFi стабильно</span></div>
+      <div style="margin-top:20px; display:flex; gap:10px;">
+        <button class="mini-btn" onclick="showToast('⚙️ Настройки открыты', 'success'); closeModal();">⚙️ Настроить</button>
+        <button class="mini-btn" onclick="showToast('🔄 Устройство перезапущено', 'success'); closeModal();">🔄 Перезагрузить</button>
+      </div>
+    `;
+    document.getElementById('modalBody').innerHTML = body;
+    document.getElementById('modalOverlay').classList.add('show');
+  }
+
+  function closeModal() { document.getElementById('modalOverlay').classList.remove('show'); }
+
+  // ===== ИСТОРИЯ =====
+  let history = JSON.parse(localStorage.getItem('sh_history') || '[]');
+  function addHistory(icon, text) {
+    history.unshift({ icon, text, time: new Date().toLocaleString('ru-RU') });
+    if (history.length > 50) history.pop();
+    localStorage.setItem('sh_history', JSON.stringify(history));
+  }
+  function renderHistory() {
+    const list = document.getElementById('historyList');
+    if (history.length === 0) {
+      list.innerHTML = '<p style="color:var(--muted); text-align:center; padding:40px;">История пуста</p>';
+      return;
+    }
+    list.innerHTML = history.map(h => `
+      <div class="history-item">
+        <div class="history-icon">${h.icon}</div>
+        <div class="history-text">${h.text}</div>
+        <div class="history-time">${h.time}</div>
+      </div>
+    `).join('');
+  }
+  function clearHistory() {
+    history = [];
+    localStorage.removeItem('sh_history');
+    renderHistory();
+    showToast('🗑️ История очищена', 'success');
+  }
+
+  // ===== СТАТИСТИКА =====
+  function updateStats() {
+    const active = Object.values(devices).filter(d => d.on).length;
+    document.getElementById('activeCount').textContent = active;
+    document.getElementById('powerUsage').textContent = (0.3 + active * 0.4).toFixed(1) + ' кВт';
+  }
+
+  // ===== УВЕДОМЛЕНИЯ =====
+  const notifications = [
+    { icon: '🔔', text: 'Добро пожаловать в SmartHome!', time: 'Только что' },
+    { icon: '💡', text: 'Свет в гостиной работал 3 часа', time: '10 мин назад' },
+    { icon: '🌡️', text: 'Температура на улице: +18°C', time: '1 час назад' }
+  ];
+  function renderNotifs() {
+    document.getElementById('notifList').innerHTML = notifications.map(n => `
+      <div class="notif-item">
+        <div>${n.icon} ${n.text}</div>
+        <div class="time">${n.time}</div>
+      </div>
+    `).join('');
+  }
+  function toggleNotifPanel() {
+    document.getElementById('notifPanel').classList.toggle('open');
+    document.getElementById('notifBadge').style.display = 'none';
+  }
+
+  // ===== TOAST =====
+  function showToast(msg, type='') {
+    const container = document.getElementById('toastContainer');
+    const toast = document.createElement('div');
+    toast.className = 'toast ' + type;
+    toast.textContent = msg;
+    container.appendChild(toast);
+    setTimeout(() => { toast.classList.add('hide'); setTimeout(() => toast.remove(), 400); }, 2500);
+  }
+
+  // ===== ТЕМА =====
+  function toggleTheme() {
+    document.body.classList.toggle('light');
+    showToast(document.body.classList.contains('light') ? '☀️ Светлая тема' : '🌙 Тёмная тема');
+  }
+
+  // ===== ПРОФИЛЬ =====
+  function saveProfile() {
+    const name = document.getElementById('profileNameInput').value.trim();
+    if (name) {
+      document.getElementById('userName').textContent = name;
+      document.getElementById('profileName').textContent = name;
+      document.getElementById('userAvatar').textContent = name[0].toUpperCase();
+      document.getElementById('profileAvatar').textContent = name[0].toUpperCase();
+      showToast('✅ Профиль сохранён', 'success');
+      addHistory('👤', 'Профиль обновлён');
+    }
+  }
+
+  // ===== INIT =====
+  renderDevices('all', 'devicesGrid');
+  renderDevices('all', 'devicesGridAll');
+  renderNotifs();
+  updateStats();
+
+  // Shake анимация
+  const style = document.createElement('style');
+  style.textContent = '@keyframes shake { 0%,100%{transform:translateX(0);} 25%{transform:translateX(-10px);} 75%{transform:translateX(10px);} }';
+  document.head.appendChild(style);
+</script>
+
+</body>
+</html>
